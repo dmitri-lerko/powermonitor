@@ -91,18 +91,29 @@ var lastBatteryTime = time.Time{}
 var batteryCapacity = 0.0
 
 func GetAdapterWattage() float64 {
-	cmd := exec.Command("system_profiler", "SPPowerDataType")
+	// Use pmset to check if AC power is connected
+	cmd := exec.Command("pmset", "-g", "ps")
 	output, err := cmd.Output()
 	if err != nil {
 		return 0
 	}
-	re := regexp.MustCompile(`Wattage \(W\):\s*([\d.]+)`)
-	m := re.FindStringSubmatch(string(output))
-	if m != nil {
-		w, _ := strconv.ParseFloat(m[1], 64)
-		return w
+	outputStr := strings.ToLower(string(output))
+	// Check if AC power is connected (adapter present)
+	if strings.Contains(outputStr, "ac connected") || strings.Contains(outputStr, "ac power") {
+		// Adapter is connected — try to get its rated wattage
+		profilerCmd := exec.Command("system_profiler", "SPPowerDataType")
+		profilerOutput, err := profilerCmd.Output()
+		if err == nil {
+			re := regexp.MustCompile(`Wattage \(W\):\s*([\d.]+)`)
+			m := re.FindStringSubmatch(string(profilerOutput))
+			if m != nil {
+				w, _ := strconv.ParseFloat(m[1], 64)
+				return w
+			}
+		}
+		return -1 // AC connected but couldn't get wattage
 	}
-	return 0
+	return 0 // on battery, no adapter
 }
 
 func parsePowerOutput(output []byte) PowerResult {
