@@ -1,0 +1,40 @@
+# Binary
+/powermon
+cmd/powermon/powermon
+
+# Database files
+data/*.db
+data/*.db-shm
+data/*.db-wal
+cmd/powermon/data/*.db
+cmd/powermon/data/*.db-shm
+cmd/powermon/data/*.db-wal
+*.db
+*.db-shm
+*.db-wal
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go build
+obj/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+*.exe
+*.exe~
+*.~
+*.tar
+*.tar.gz
+
+# Config files (if any)
+*.pem
+*.key
+*.crt
