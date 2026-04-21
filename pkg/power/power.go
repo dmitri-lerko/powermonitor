@@ -89,14 +89,8 @@ func GetBatteryCapacity() float64 {
 var lastBatteryPct = -1.0
 var lastBatteryTime = time.Time{}
 var batteryCapacity = 0.0
-var adapterCache = -1.0
-var adapterCacheTime = time.Time{}
 
 func GetAdapterWattage() float64 {
-	// Cache for 60 seconds
-	if adapterCache >= 0 && time.Since(adapterCacheTime) < 60*time.Second {
-		return adapterCache
-	}
 	cmd := exec.Command("system_profiler", "SPPowerDataType")
 	output, err := cmd.Output()
 	if err != nil {
@@ -106,8 +100,6 @@ func GetAdapterWattage() float64 {
 	m := re.FindStringSubmatch(string(output))
 	if m != nil {
 		w, _ := strconv.ParseFloat(m[1], 64)
-		adapterCache = w
-		adapterCacheTime = time.Now()
 		return w
 	}
 	return 0
