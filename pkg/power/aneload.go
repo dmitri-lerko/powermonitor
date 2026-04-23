@@ -87,13 +87,25 @@ func GetANEPower(useSudo bool) (float64, error) {
 	var output []byte
 	var err error
 	
-	// Try with sudo first (powermetrics requires root)
-	if useSudo {
-		cmd := exec.Command("sudo", "powermetrics", "--samplers", "cpu_power", "-n", "1", "-i", "1")
+	// If running as root, just call powermetrics directly
+	if os.Geteuid() == 0 {
+		cmd := exec.Command("powermetrics", "--samplers", "cpu_power", "-n", "1", "-i", "1")
 		output, err = cmd.CombinedOutput()
 		if err == nil {
 			return parseANEPower(output)
 		}
+		return 0, err
+	}
+	
+	// Try with sudo -n (NOPASSWD)
+	if useSudo {
+		cmd := exec.Command("sudo", "-n", "powermetrics", "--samplers", "cpu_power", "-n", "1", "-i", "1")
+		output, err = cmd.CombinedOutput()
+		if err == nil {
+			return parseANEPower(output)
+		}
+		// sudo -n failed, don't fall back to interactive sudo
+		return 0, fmt.Errorf("sudo -n powermetrics failed: %w", err)
 	}
 	
 	// Try without sudo

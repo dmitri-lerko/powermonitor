@@ -283,16 +283,16 @@ func statusStr(ok bool) string {
 func cmdBench(args []string) {
 	duration := 10 * time.Second
 	iterations := 200
-	interval := 1 * time.Second
+	interval := 2 * time.Second
 	dbPath := defaultDB
 	useSudo := false
 
 	fs := flag.NewFlagSet("bench", flag.ExitOnError)
 	fs.DurationVar(&duration, "duration", duration, "benchmark duration")
-	fs.IntVar(&iterations, "iterations", iterations, "number of ANE workload iterations")
+	fs.IntVar(&iterations, "iterations", iterations, "number of ANE workload iterations per round")
 	fs.DurationVar(&interval, "interval", interval, "reporting interval")
 	fs.StringVar(&dbPath, "db", defaultDB, "database path")
-	fs.BoolVar(&useSudo, "sudo", false, "use sudo for powermetrics (requires password)")
+	fs.BoolVar(&useSudo, "sudo", false, "use sudo for powermetrics (required for ANE readings)")
 	fs.Parse(args)
 
 	store, err := db.NewStore(dbPath)
@@ -303,7 +303,7 @@ func cmdBench(args []string) {
 	defer store.Close()
 
 	fmt.Println("=== ANE Benchmark ===")
-	fmt.Printf("Duration: %s | Iterations: %d | Interval: %s\n\n", duration, iterations, interval)
+	fmt.Printf("Duration: %s | Iterations per round: %d | Report interval: %s\n\n", duration, iterations, interval)
 
 	// Take baseline reading
 	fmt.Println("Taking baseline ANE power...")
@@ -311,7 +311,11 @@ func cmdBench(args []string) {
 	baseline, err := power.GetANEPower(useSudo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: couldn't read ANE power: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Run with -sudo flag for accurate readings (requires password)\n\n")
+		if !useSudo {
+			fmt.Fprintf(os.Stderr, "Run with 'sudo powermon bench' for ANE readings\n")
+		} else {
+			fmt.Fprintf(os.Stderr, "Ensure 'powermetrics' is in your NOPASSWD sudo list\n\n")
+		}
 		baseline = 0
 	}
 	fmt.Printf("Baseline ANE: %.1f W\n\n", baseline)
@@ -327,20 +331,29 @@ func cmdBench(args []string) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	done := make(chan struct{})
+	// Run ANE load continuously in background
+	aneDone := make(chan struct{})
 	go func() {
-		time.Sleep(duration)
-		close(done)
+		for {
+			select {
+			case <-aneDone:
+				return
+			default:
+				power.TriggerANELoad(iterations)
+			}
+		}
 	}()
+
+	// Signal benchmark to stop after duration
+	time.AfterFunc(duration, func() {
+		close(aneDone)
+	})
 
 	for {
 		select {
-		case <-done:
+		case <-aneDone:
 			goto done
 		case <-ticker.C:
-			// Trigger ANE load in chunks
-			go power.TriggerANELoadWithTimeout(iterations/int(duration.Seconds()/interval.Seconds())+1, 5*time.Second)
-
 			// Read ANE power
 			anePower, err := power.GetANEPower(useSudo)
 			if err == nil && anePower > 0 {
@@ -350,8 +363,10 @@ func cmdBench(args []string) {
 				totalANE += anePower
 				count++
 				fmt.Printf("  ANE: %7.1f W  (peak: %7.1f W)\n", anePower, peakANE)
+			} else if anePower == 0 && err == nil {
+				fmt.Printf("  ANE:   0.0 W  (peak: %.1f W)  [no ANE activity detected]\n", peakANE)
 			} else {
-				fmt.Println("  (couldn't read ANE power - try with -sudo)")
+				fmt.Printf("  (couldn't read ANE power: %v)\n", err)
 			}
 		}
 	}
@@ -447,7 +462,7 @@ Commands:
   today     Show today's power statistics
   status    Show current power status
   bench     Run ANE benchmark with synthetic load
-  dump      Dump raw readings to terminal
+   dump      Dump raw readings to terminal
 
 Options:
   -db string   Database path (default "data/powermon.db")
@@ -460,8 +475,7 @@ Examples:
   powermon daily -weeks 8             # View 8 weeks of daily data
   powermon today                      # Today's stats
   powermon status                     # Current status
-  powermon bench                      # Run ANE benchmark (requires sudo)
+  powermon bench                      # Run ANE benchmark
   powermon bench -duration 15s        # Benchmark for 15 seconds
-  sudo powermon bench                 # Run with sudo for ANE readings
 `)
 }
