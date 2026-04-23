@@ -108,10 +108,14 @@ func GetANEPower(useSudo bool) (float64, error) {
 		return 0, fmt.Errorf("sudo -n powermetrics failed: %w", err)
 	}
 	
-	// Try without sudo
+	// Try without sudo first
 	cmd := exec.Command("powermetrics", "--samplers", "cpu_power", "-n", "1", "-i", "1")
 	output, err = cmd.CombinedOutput()
 	if err != nil {
+		// Check if it's a permission error
+		if strings.Contains(string(output), "superuser") || strings.Contains(string(output), "root") {
+			return 0, fmt.Errorf("powermetrics requires root privileges: %s", strings.TrimSpace(string(output)))
+		}
 		return 0, err
 	}
 	
