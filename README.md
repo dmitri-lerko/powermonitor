@@ -1,11 +1,11 @@
 # powermon
 
-macOS power draw and battery monitoring CLI tool. Samples CPU, GPU, and ANE power every second, stores data in SQLite, and visualizes live and historical usage in the terminal.
+macOS power draw and battery monitoring CLI tool. Samples CPU, GPU, and Neural Accelerator / ANE power every second, stores data in SQLite, and visualizes live and historical usage in the terminal.
 
 ## Features
 
 - **Live monitoring** with real-time sparkline visualization
-- **Per-component breakdown**: CPU, GPU, and ANE (Neural Engine) power
+- **Per-component breakdown**: CPU, GPU, and Neural Accelerator (Apple Neural Engine / ANE) power
 - **Charging split**: Estimates power going to system vs battery charging
 - **Historical views**: Hourly and daily aggregated charts
 - **Battery tracking**: Charging state, percentage, and power source (AC/Battery)
@@ -60,7 +60,7 @@ powermon daily -weeks 8             # Daily aggregated bar chart
 **Status:**
 ```
 Power: 4.5 W
-  CPU: 4.5 W  GPU: 0.0 W  ANE: 0.0 W
+  CPU: 4.5 W  GPU: 0.0 W  Neural Accelerator (ANE): 0.0 W
 Battery: 50%
 Source: AC
 Status: ⚡ Charging
@@ -71,7 +71,7 @@ Adapter: 60 W
 ```
 ⚡  Total: 8.5 W
          System: 6.5 W  Battery: 2.0 W
-         CPU: 5.0 W  GPU: 1.5 W  ANE: 0.0 W
+         CPU: 5.0 W  GPU: 1.5 W  Neural Accelerator (ANE): 0.0 W
          Adapter: 60 W
   Battery: 51%  Source: AC
   Time: 14:05:00
@@ -85,17 +85,18 @@ Adapter: 60 W
 
 **Dump:**
 ```
-TIME                      WATTS     BAT%    CHG      SYS    CHG W   BATT W SOURCE
---------------------------------------------------------------------------------
-2026-04-20 14:00:00        5.2      50% ⚡     5.2 W     0.0 W     5.2 W AC
-2026-04-20 14:05:00        8.5      51% ⚡     6.5 W     2.0 W     6.5 W AC
-2026-04-20 14:10:00       12.3      52% ⚡     8.3 W     4.0 W     8.3 W AC
+TIME                    TOTAL     CPU     GPU    NEURAL   BAT%  CHG      SYS    CHG W SOURCE
+--------------------------------------------------------------------------------------------------------------
+2026-04-20 14:00:00      5.2      4.7     0.5      0.0 W   50%    ⚡     5.2 W     0.0 W AC
+2026-04-20 14:05:00      8.5      5.0     1.5      0.0 W   51%    ⚡     6.5 W     2.0 W AC
+2026-04-20 14:10:00     12.3      8.0     2.1      0.4 W   52%    ⚡     8.3 W     4.0 W AC
 ```
 
 ## How It Works
 
 ### Power measurement
 - **System power** (CPU + GPU + ANE): Read from `powermetrics --samplers cpu_power`
+- **Neural Accelerator power**: Read directly from the `ANE Power:` line in `powermetrics` output when macOS exposes it
 - **Battery charging power**: Estimated from battery % change rate × battery capacity
 - **Adapter wattage**: Read from `system_profiler SPPowerDataType`
 
@@ -118,7 +119,7 @@ All readings are stored in SQLite at `~/.powermon/data/powermon.db`:
 | `power_draw` | Total CPU + GPU + ANE power (W) |
 | `cpu_watts` | CPU power (W) |
 | `gpu_watts` | GPU power (W) |
-| `ank_watts` | ANE (Neural Engine) power (W) |
+| `ank_watts` | Neural Accelerator / ANE power (W) |
 | `charging_watts` | Power going to battery charging (W) |
 | `system_watts` | Power going to system (W) |
 | `is_charging` | Battery charging state (bool) |

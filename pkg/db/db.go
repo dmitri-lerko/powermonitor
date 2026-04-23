@@ -60,7 +60,7 @@ func (s *Store) Save(r power.Reading) error {
 		r.PowerDraw,
 		r.CpuWatts,
 		r.GpuWatts,
-		r.AnkWatts,
+		r.AneWatts,
 		r.ChargingWatts,
 		r.SystemWatts,
 		btoi(r.IsCharging),
@@ -102,7 +102,7 @@ func (s *Store) Recent(n int) ([]power.Reading, error) {
 		r.PowerDraw, _ = strconv.ParseFloat(parts[1], 64)
 		r.CpuWatts, _ = strconv.ParseFloat(parts[2], 64)
 		r.GpuWatts, _ = strconv.ParseFloat(parts[3], 64)
-		r.AnkWatts, _ = strconv.ParseFloat(parts[4], 64)
+		r.AneWatts, _ = strconv.ParseFloat(parts[4], 64)
 		r.ChargingWatts, _ = strconv.ParseFloat(parts[5], 64)
 		r.SystemWatts, _ = strconv.ParseFloat(parts[6], 64)
 		charging, _ = strconv.Atoi(parts[7])

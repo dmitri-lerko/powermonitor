@@ -15,7 +15,7 @@ type Reading struct {
 	PowerDraw      float64   `json:"power_draw"`
 	CpuWatts       float64   `json:"cpu_watts"`
 	GpuWatts       float64   `json:"gpu_watts"`
-	AnkWatts       float64   `json:"ank_watts"`
+	AneWatts       float64   `json:"ane_watts"`
 	IsCharging     bool      `json:"is_charging"`
 	BatteryPct     float64   `json:"battery_pct"`
 	Source         string    `json:"source"`
@@ -28,7 +28,7 @@ type PowerResult struct {
 	TotalW   float64
 	CpuW     float64
 	GpuW     float64
-	AnkW     float64
+	AneW     float64
 }
 
 func GetPowerDraw() (float64, error) {
@@ -136,7 +136,7 @@ func parsePowerOutput(output []byte) PowerResult {
 		re = regexp.MustCompile(`ANE Power:\s*([\d.]+)\s*mW`)
 		if m := re.FindStringSubmatch(line); m != nil {
 			v, _ := strconv.ParseFloat(m[1], 64)
-			r.AnkW = v / 1000.0
+			r.AneW = v / 1000.0
 		}
 		re = regexp.MustCompile(`Combined Power.*?:\s*([\d.]+)\s*mW`)
 		if m := re.FindStringSubmatch(line); m != nil {
@@ -191,7 +191,7 @@ func Collect() (Reading, error) {
 	r.PowerDraw = power.TotalW
 	r.CpuWatts = power.CpuW
 	r.GpuWatts = power.GpuW
-	r.AnkWatts = power.AnkW
+	r.AneWatts = power.AneW
 	r.AdapterW = GetAdapterWattage()
 
 	charging, pct, source, err := GetBatteryStatus()

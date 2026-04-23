@@ -51,6 +51,8 @@ func main() {
 		cmdStatus()
 	case "dump":
 		cmdDump(os.Args[2:])
+	case "bench":
+		cmdBench(os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
 		printUsage()
@@ -260,7 +262,7 @@ func cmdStatus() {
 		if r.ChargingWatts > 0.1 {
 			fmt.Printf("  System: %.1f W | Battery: %.1f W\n", r.SystemWatts, r.ChargingWatts)
 		}
-		fmt.Printf("  CPU: %.1f W  GPU: %.1f W  ANE: %.1f W\n", r.CpuWatts, r.GpuWatts, r.AnkWatts)
+		fmt.Printf("  CPU: %.1f W  GPU: %.1f W  Neural Accelerator (ANE): %.1f W\n", r.CpuWatts, r.GpuWatts, r.AneWatts)
 	}
 	fmt.Printf("Battery: %.0f%%\n", r.BatteryPct)
 	fmt.Printf("Source: %s\n", r.Source)
@@ -276,6 +278,108 @@ func statusStr(ok bool) string {
 		return "OK"
 	}
 	return "FAIL"
+}
+
+func cmdBench(args []string) {
+	duration := 10 * time.Second
+	iterations := 200
+	interval := 1 * time.Second
+	dbPath := defaultDB
+	useSudo := false
+
+	fs := flag.NewFlagSet("bench", flag.ExitOnError)
+	fs.DurationVar(&duration, "duration", duration, "benchmark duration")
+	fs.IntVar(&iterations, "iterations", iterations, "number of ANE workload iterations")
+	fs.DurationVar(&interval, "interval", interval, "reporting interval")
+	fs.StringVar(&dbPath, "db", defaultDB, "database path")
+	fs.BoolVar(&useSudo, "sudo", false, "use sudo for powermetrics (requires password)")
+	fs.Parse(args)
+
+	store, err := db.NewStore(dbPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	defer store.Close()
+
+	fmt.Println("=== ANE Benchmark ===")
+	fmt.Printf("Duration: %s | Iterations: %d | Interval: %s\n\n", duration, iterations, interval)
+
+	// Take baseline reading
+	fmt.Println("Taking baseline ANE power...")
+	time.Sleep(2 * time.Second)
+	baseline, err := power.GetANEPower(useSudo)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: couldn't read ANE power: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Run with -sudo flag for accurate readings (requires password)\n\n")
+		baseline = 0
+	}
+	fmt.Printf("Baseline ANE: %.1f W\n\n", baseline)
+
+	// Start benchmark
+	fmt.Println("Triggering ANE load...")
+	fmt.Println(strings.Repeat("-", 60))
+
+	startTime := time.Now()
+	peakANE := 0.0
+	totalANE := 0.0
+	count := 0
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	done := make(chan struct{})
+	go func() {
+		time.Sleep(duration)
+		close(done)
+	}()
+
+	for {
+		select {
+		case <-done:
+			goto done
+		case <-ticker.C:
+			// Trigger ANE load in chunks
+			go power.TriggerANELoadWithTimeout(iterations/int(duration.Seconds()/interval.Seconds())+1, 5*time.Second)
+
+			// Read ANE power
+			anePower, err := power.GetANEPower(useSudo)
+			if err == nil && anePower > 0 {
+				if anePower > peakANE {
+					peakANE = anePower
+				}
+				totalANE += anePower
+				count++
+				fmt.Printf("  ANE: %7.1f W  (peak: %7.1f W)\n", anePower, peakANE)
+			} else {
+				fmt.Println("  (couldn't read ANE power - try with -sudo)")
+			}
+		}
+	}
+
+done:
+	fmt.Println(strings.Repeat("-", 60))
+
+	// Post-baseline reading
+	fmt.Println("\nTaking post-baseline ANE power...")
+	time.Sleep(2 * time.Second)
+	postBaseline, err := power.GetANEPower(useSudo)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: couldn't read post-baseline: %v\n", err)
+		postBaseline = 0
+	}
+
+	avgANE := 0.0
+	if count > 0 {
+		avgANE = totalANE / float64(count)
+	}
+
+	fmt.Println("\n=== Results ===")
+	fmt.Printf("  Baseline ANE:  %.1f W\n", baseline)
+	fmt.Printf("  Peak ANE:      %.1f W\n", peakANE)
+	fmt.Printf("  Average ANE:   %.1f W\n", avgANE)
+	fmt.Printf("  Post-baseline: %.1f W\n", postBaseline)
+	fmt.Printf("  Samples:       %d\n", count)
+	fmt.Printf("  Duration:      %s\n", time.Since(startTime).Round(time.Millisecond))
 }
 
 func cmdDump(args []string) {
@@ -300,8 +404,8 @@ func cmdDump(args []string) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("%-22s %8s %8s %6s %8s %8s %8s %s\n", "TIME", "WATTS", "BAT%", "CHG", "SYS", "CHG W", "BATT W", "SOURCE")
-	fmt.Println(strings.Repeat("-", 80))
+	fmt.Printf("%-22s %7s %7s %7s %9s %6s %4s %8s %8s %s\n", "TIME", "TOTAL", "CPU", "GPU", "NEURAL", "BAT%", "CHG", "SYS", "CHG W", "SOURCE")
+	fmt.Println(strings.Repeat("-", 110))
 	for _, r := range readings {
 		chg := " "
 		if r.IsCharging {
@@ -313,14 +417,16 @@ func cmdDump(args []string) {
 			sysW = r.PowerDraw
 			chrW = 0
 		}
-		fmt.Printf("%-22s %8.1f %7.0f%% %s %7.1f W %7.1f W %7.1f W %s\n",
+		fmt.Printf("%-22s %7.1f %7.1f %7.1f %8.1f W %5.0f%% %3s %7.1f W %7.1f W %s\n",
 			r.Timestamp.Format("2006-01-02 15:04:05"),
 			r.PowerDraw,
+			r.CpuWatts,
+			r.GpuWatts,
+			r.AneWatts,
 			r.BatteryPct,
 			chg,
 			sysW,
 			chrW,
-			r.CpuWatts+r.GpuWatts+r.AnkWatts,
 			r.Source,
 		)
 	}
@@ -340,6 +446,7 @@ Commands:
   daily     Show daily aggregated power usage
   today     Show today's power statistics
   status    Show current power status
+  bench     Run ANE benchmark with synthetic load
   dump      Dump raw readings to terminal
 
 Options:
@@ -352,5 +459,9 @@ Examples:
   powermon hourly -days 14            # View 14 days of hourly data
   powermon daily -weeks 8             # View 8 weeks of daily data
   powermon today                      # Today's stats
-  powermon status                     # Current status`)
+  powermon status                     # Current status
+  powermon bench                      # Run ANE benchmark (requires sudo)
+  powermon bench -duration 15s        # Benchmark for 15 seconds
+  sudo powermon bench                 # Run with sudo for ANE readings
+`)
 }

@@ -55,14 +55,14 @@ func LiveView(readings []power.Reading) string {
 		if last.ChargingWatts > 0.1 {
 			lines = append(lines, fmt.Sprintf("  %s  Total: %.1f W", statusIcon, last.PowerDraw))
 			lines = append(lines, fmt.Sprintf("         System: %.1f W  Battery: %.1f W", last.SystemWatts, last.ChargingWatts))
-			lines = append(lines, fmt.Sprintf("         CPU: %.1f W  GPU: %.1f W  ANE: %.1f W", last.CpuWatts, last.GpuWatts, last.AnkWatts))
+			lines = append(lines, fmt.Sprintf("         CPU: %.1f W  GPU: %.1f W  Neural Accelerator (ANE): %.1f W", last.CpuWatts, last.GpuWatts, last.AneWatts))
 		} else if last.IsCharging {
 			lines = append(lines, fmt.Sprintf("  %s  Total: %.1f W", statusIcon, last.PowerDraw))
 			lines = append(lines, "         Charging (split updates when battery % changes)")
-			lines = append(lines, fmt.Sprintf("         CPU: %.1f W  GPU: %.1f W  ANE: %.1f W", last.CpuWatts, last.GpuWatts, last.AnkWatts))
+			lines = append(lines, fmt.Sprintf("         CPU: %.1f W  GPU: %.1f W  Neural Accelerator (ANE): %.1f W", last.CpuWatts, last.GpuWatts, last.AneWatts))
 		} else {
 			lines = append(lines, fmt.Sprintf("  %s  Total: %.1f W", statusIcon, last.PowerDraw))
-			lines = append(lines, fmt.Sprintf("         CPU: %.1f W  GPU: %.1f W  ANE: %.1f W", last.CpuWatts, last.GpuWatts, last.AnkWatts))
+			lines = append(lines, fmt.Sprintf("         CPU: %.1f W  GPU: %.1f W  Neural Accelerator (ANE): %.1f W", last.CpuWatts, last.GpuWatts, last.AneWatts))
 			lines = append(lines, "         Battery: idle")
 		}
 		if last.AdapterW > 0 {
