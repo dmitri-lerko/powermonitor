@@ -16,14 +16,7 @@ macOS power draw and battery monitoring CLI tool. Samples CPU, GPU, and Neural A
 ## Installation
 
 ```bash
-# Clone and build
-git clone <repo>
-cd powermon
-go build -o ~/bin/powermon ./cmd/powermon/
-
-# Add to PATH (if not already in ~/.zshrc)
-echo 'export PATH="$HOME/bin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
+go install github.com/cyber-nic/powermon@latest
 ```
 
 ## Usage

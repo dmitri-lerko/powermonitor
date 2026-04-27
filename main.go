@@ -12,9 +12,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dmitri-lerko/powermon/pkg/db"
-	"github.com/dmitri-lerko/powermon/pkg/power"
-	"github.com/dmitri-lerko/powermon/pkg/vis"
+	"github.com/cyber-nic/powermon/pkg/db"
+	"github.com/cyber-nic/powermon/pkg/power"
+	"github.com/cyber-nic/powermon/pkg/vis"
 )
 
 var defaultDB = "data/powermon.db"

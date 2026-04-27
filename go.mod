@@ -1,3 +1,3 @@
-module github.com/dmitri-lerko/powermon
+module github.com/cyber-nic/powermon
 
 go 1.22
