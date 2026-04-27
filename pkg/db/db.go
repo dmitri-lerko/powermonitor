@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dmitri-lerko/powermon/pkg/power"
+	"github.com/dmitri-lerko/powermonitor/pkg/power"
 )
 
 type Store struct {

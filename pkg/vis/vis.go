@@ -5,8 +5,8 @@ import (
 	"math"
 	"strings"
 
-	"github.com/dmitri-lerko/powermon/pkg/db"
-	"github.com/dmitri-lerko/powermon/pkg/power"
+	"github.com/dmitri-lerko/powermonitor/pkg/db"
+	"github.com/dmitri-lerko/powermonitor/pkg/power"
 )
 
 const (
