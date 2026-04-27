@@ -16,17 +16,7 @@ macOS power draw and battery monitoring CLI tool. Samples CPU, GPU, and Neural A
 ## Installation
 
 ```bash
-go install github.com/dmitri-lerko/powermonitor/cmd/powermon@latest
-```
-
-This requires Go 1.22+ and places the `powermon` binary in `$GOPATH/bin` (typically `~/go/bin`). Make sure that directory is on your `PATH`.
-
-Alternatively, build from source:
-
-```bash
-git clone https://github.com/dmitri-lerko/powermonitor
-cd powermonitor
-go build -o ~/bin/powermon ./cmd/powermon/
+go install github.com/cyber-nic/powermon@latest
 ```
 
 ## Usage
